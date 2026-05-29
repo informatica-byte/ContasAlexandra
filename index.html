@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -146,6 +146,16 @@
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .modal-actions .btn { flex: 1; justify-content: center; padding: 12px; }
   
+  .calculator { max-width: 340px; }
+  .calc-display { width: 100%; background: #101010; border: 1px solid var(--border2); border-radius: var(--radius2); color: var(--text); font-family: 'DM Mono', monospace; font-size: 28px; padding: 16px; text-align: right; margin-bottom: 14px; min-height: 66px; overflow: hidden; }
+  .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .calc-btn { border: 1px solid var(--border2); border-radius: var(--radius2); background: var(--surface2); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 600; min-height: 52px; cursor: pointer; transition: all 0.15s; }
+  .calc-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .calc-btn.op { background: rgba(200,169,110,0.14); color: var(--accent); }
+  .calc-btn.danger { color: var(--red); }
+  .calc-btn.equal { background: var(--accent); color: #111; border-color: var(--accent); }
+  .calc-btn.wide { grid-column: span 2; }
+
   .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius2); padding: 12px 18px; font-size: 13px; color: var(--text); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s ease; }
   .renda-row { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; }
   .renda-row label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text2); white-space: nowrap; }
@@ -221,6 +231,10 @@
     const cloudData = snapshot.val();
     if (cloudData) {
       const MONTHS_LIST = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+      if (cloudData['MARÃ‡O']) {
+        cloudData['MARÇO'] = cloudData['MARÇO'] || cloudData['MARÃ‡O'];
+        delete cloudData['MARÃ‡O'];
+      }
       MONTHS_LIST.forEach(m => {
         if (!cloudData[m]) cloudData[m] = { renda: 0, contas: [] };
         if (!cloudData[m].contas) cloudData[m].contas = [];
@@ -239,8 +253,9 @@
 <header>
   <div class="logo">Contas <span>2026</span></div>
   <div class="header-right">
-    <button class="btn" onclick="exportData()">⬇ Exportar</button>
-    <button class="btn btn-accent" onclick="openModal()">＋ Nova Conta</button>
+    <button class="btn" onclick="openCalculator()">🧮 Calculadora</button>
+    <button class="btn" onclick="exportData()">⇩ Exportar</button>
+    <button class="btn btn-accent" onclick="openModal()">+ Nova Conta</button>
   </div>
 </header>
 
@@ -281,18 +296,62 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="calc-overlay" onclick="if(event.target===this) closeCalculator()">
+  <div class="modal calculator">
+    <h2>Calculadora</h2>
+    <div class="calc-display" id="calc-display">0</div>
+    <div class="calc-grid">
+      <button class="calc-btn danger" onclick="calcClear()">C</button>
+      <button class="calc-btn" onclick="calcBackspace()">⌫</button>
+      <button class="calc-btn op" onclick="calcInput('/')">÷</button>
+      <button class="calc-btn op" onclick="calcInput('*')">×</button>
+      <button class="calc-btn" onclick="calcInput('7')">7</button>
+      <button class="calc-btn" onclick="calcInput('8')">8</button>
+      <button class="calc-btn" onclick="calcInput('9')">9</button>
+      <button class="calc-btn op" onclick="calcInput('-')">−</button>
+      <button class="calc-btn" onclick="calcInput('4')">4</button>
+      <button class="calc-btn" onclick="calcInput('5')">5</button>
+      <button class="calc-btn" onclick="calcInput('6')">6</button>
+      <button class="calc-btn op" onclick="calcInput('+')">+</button>
+      <button class="calc-btn" onclick="calcInput('1')">1</button>
+      <button class="calc-btn" onclick="calcInput('2')">2</button>
+      <button class="calc-btn" onclick="calcInput('3')">3</button>
+      <button class="calc-btn equal" onclick="calcEquals()">=</button>
+      <button class="calc-btn wide" onclick="calcInput('0')">0</button>
+      <button class="calc-btn" onclick="calcInput('.')">,</button>
+      <button class="calc-btn" onclick="closeCalculator()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const MONTHS = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+const LEGACY_MONTHS = { 'MARÃ‡O': 'MARÇO' };
+function normalizeData(dados) {
+  const normalized = dados || {};
+  Object.entries(LEGACY_MONTHS).forEach(([oldKey, newKey]) => {
+    if (normalized[oldKey]) {
+      if (!normalized[newKey]) normalized[newKey] = normalized[oldKey];
+      else {
+        normalized[newKey].renda = normalized[newKey].renda || normalized[oldKey].renda || 0;
+        normalized[newKey].contas = [...(normalized[newKey].contas || []), ...(normalized[oldKey].contas || [])];
+      }
+      delete normalized[oldKey];
+    }
+  });
+  MONTHS.forEach(m => {
+    if (!normalized[m]) normalized[m] = { renda: 0, contas: [] };
+    if (!normalized[m].contas) normalized[m].contas = [];
+  });
+  return normalized;
+}
 const MONTH_SHORT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
 function uid() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
 
-window.data = JSON.parse(localStorage.getItem('contas2026_esposa')) || {};
-if (Object.keys(window.data).length === 0) {
-    MONTHS.forEach(m => window.data[m] = { renda: 0, contas: [] });
-}
+window.data = normalizeData(JSON.parse(localStorage.getItem('contas2026_esposa')) || {});
 
 let currentMonth = MONTHS[new Date().getMonth()];
 let viewMode = 'month';
@@ -479,6 +538,37 @@ function openEdit(month, id) {
 }
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 
+let calcExpression = '';
+function openCalculator() { document.getElementById('calc-overlay').classList.add('open'); updateCalcDisplay(); }
+function closeCalculator() { document.getElementById('calc-overlay').classList.remove('open'); }
+function updateCalcDisplay(value) { document.getElementById('calc-display').innerText = value || calcExpression || '0'; }
+function calcInput(value) {
+  const last = calcExpression.slice(-1);
+  if ('+-*/'.includes(value) && (!calcExpression || '+-*/'.includes(last))) {
+    if (value === '-' && !calcExpression) calcExpression = value;
+    else if (calcExpression.length > 1) calcExpression = calcExpression.slice(0, -1) + value;
+  } else if (value === '.' && /(^|[+\-*/])\d*\.$/.test(calcExpression)) {
+    return;
+  } else {
+    calcExpression += value;
+  }
+  updateCalcDisplay();
+}
+function calcClear() { calcExpression = ''; updateCalcDisplay(); }
+function calcBackspace() { calcExpression = calcExpression.slice(0, -1); updateCalcDisplay(); }
+function calcEquals() {
+  if (!calcExpression) return;
+  try {
+    const result = Function('"use strict"; return (' + calcExpression + ')')();
+    if (!Number.isFinite(result)) throw new Error('Resultado inválido');
+    calcExpression = String(Math.round(result * 100) / 100);
+    updateCalcDisplay(Number(calcExpression).toLocaleString('pt-BR', { maximumFractionDigits: 2 }));
+  } catch (err) {
+    updateCalcDisplay('Erro');
+    calcExpression = '';
+  }
+}
+
 function saveItem() {
   const desc = document.getElementById('f-desc').value;
   const valor = parseFloat(document.getElementById('f-valor').value)||0;
@@ -515,3 +605,6 @@ render();
 </script>
 </body>
 </html>
+
+
+
