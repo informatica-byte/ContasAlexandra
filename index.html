@@ -203,7 +203,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+  import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
 
   const firebaseConfig = {
     databaseURL: "https://contas-alexandra-default-rtdb.firebaseio.com/",
@@ -217,12 +217,12 @@
     set(dbRef, dados);
   };
 
-  onValue(dbRef, (snapshot) => {
+  get(dbRef).then((snapshot) => {
     const cloudData = snapshot.val();
     if (cloudData) {
       window.data = cloudData;
       window.render();
-      console.log("Dados sincronizados com a nuvem.");
+      console.log("Dados carregados da nuvem.");
     }
   });
 </script>
