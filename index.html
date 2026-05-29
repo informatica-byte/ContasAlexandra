@@ -220,10 +220,17 @@
   get(dbRef).then((snapshot) => {
     const cloudData = snapshot.val();
     if (cloudData) {
+      const MONTHS_LIST = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+      MONTHS_LIST.forEach(m => {
+        if (!cloudData[m]) cloudData[m] = { renda: 0, contas: [] };
+        if (!cloudData[m].contas) cloudData[m].contas = [];
+      });
       window.data = cloudData;
       window.render();
       console.log("Dados carregados da nuvem.");
     }
+  }).catch((err) => {
+    console.warn("Erro ao carregar da nuvem, usando dados locais.", err);
   });
 </script>
 </head>
@@ -336,12 +343,12 @@ function renderSidebar() {
   document.getElementById('btn-annual').className = 'month-btn' + (viewMode==='annual'?' active':'');
   
   if(viewMode === 'month') {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const activeBtn = el.querySelector('.month-btn.active');
       if(activeBtn && window.innerWidth <= 768) {
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        activeBtn.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' });
       }
-    }, 100);
+    });
   }
 }
 
